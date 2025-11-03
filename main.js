@@ -15,8 +15,24 @@ const servers = {
 
 // ========== NEW: WebSocket variables ==========
 let ws;
-let roomId = "default-room"; // Room ID for matching users
 // ==============================================
+
+// Generate or get room ID from URL
+const urlParams = new URLSearchParams(window.location.search);
+let roomId = urlParams.get("room") || Math.random().toString(36).substring(7);
+
+// Update URL with room ID if not present
+if (!urlParams.get("room")) {
+  window.history.replaceState({}, "", `?room=${roomId}`);
+}
+
+// Display room link
+document.addEventListener("DOMContentLoaded", () => {
+  const shareLink = `${window.location.origin}?room=${roomId}`;
+  document.getElementById(
+    "roomC"
+  ).innerHTML = `Share this link: <a href="${shareLink}">${shareLink}</a>`;
+});
 
 let init = async () => {
   try {
@@ -50,17 +66,16 @@ let createOffer = async () => {
   peerConnection.onicecandidate = async (event) => {
     if (event.candidate) {
       console.log("New ICE cand: ", event.candidate);
+      // ========== NEW: Send ICE candidate to other peer via WebSocket ==========
+      ws.send(
+        JSON.stringify({
+          type: "ice-candidate",
+          candidate: event.candidate,
+        })
+      );
+      // =========================================================================
     }
   };
-
-  // ========== NEW: Send ICE candidate to other peer via WebSocket ==========
-  ws.send(
-    JSON.stringify({
-      type: "ice-candidate",
-      candidate: event.candidate,
-    })
-  );
-  // =========================================================================
 
   let offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
