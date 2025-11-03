@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Video Call</title>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="tvFav.png" type="image/x-icon" />
+    <script src="main.js" defer></script>
+    <script src="call.js" defer></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: #1a1a1a;
+        color: white;
+        overflow: hidden;
+        height: 100vh;
+      }
+
+      /* Header */
+      .header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.7) 0%,
+          rgba(0, 0, 0, 0) 100%
+        );
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .room-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .room-code {
+        background: rgba(255, 255, 255, 0.15);
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 1px;
+      }
+
+      .copy-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.2s;
+      }
+
+      .copy-btn:hover {
+        background: #5568d3;
+        transform: scale(1.05);
+      }
+
+      #err {
+        font-size: 14px;
+        color: #ffd700;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 8px 16px;
+        border-radius: 6px;
+      }
+
+      /* Video Container */
+      #video-container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        background: #000;
+      }
+
+      /* Main video (full screen) */
+      .video-main {
+        width: 99.5%;
+        height: 99.5%;
+        object-fit: cover;
+        background: #000;
+      }
+
+      /* Picture-in-picture video (small) */
+      .video-pip {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        width: 300px;
+        height: 225px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #000;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      }
+
+      .video-pip:hover {
+        border-color: #667eea;
+        transform: scale(1.05);
+        box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
+      }
+
+      /* Label for videos */
+      .video-label {
+        position: absolute;
+        bottom: 208px;
+        left: -80px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        z-index: 10;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .video-pip {
+          width: 120px;
+          height: 90px;
+          bottom: 80px;
+          right: 15px;
+        }
+
+        .room-info {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+        }
+      }
+
+      /* Controls bar at bottom */
+      .controls {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.8) 0%,
+          rgba(0, 0, 0, 0) 100%
+        );
+        padding: 30px 20px 20px;
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+      }
+
+      .control-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: white;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .control-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.1);
+      }
+
+      .control-btn.danger {
+        background: #e53e3e;
+      }
+
+      .control-btn.danger:hover {
+        background: #c53030;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="room-info">
+        <div class="room-code">Room: <span id="roomCodeDisplay"></span></div>
+        <button class="copy-btn" onclick="copyRoomCode()">📋 Copy Code</button>
+      </div>
+      <p id="err"></p>
+    </div>
+
+    <div id="video-container">
+      <video class="video-main" id="main-video" autoplay playsinline></video>
+      <div style="position: relative; display: inline-block">
+        <video
+          class="video-pip"
+          id="pip-video"
+          autoplay
+          playsinline
+          onclick="swapVideos()"
+        ></video>
+        <div class="video-label" id="pip-label">You</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button
+        class="control-btn"
+        onclick="toggleMute()"
+        id="muteBtn"
+        title="Mute/Unmute"
+      >
+        🎤
+      </button>
+      <button
+        class="control-btn"
+        onclick="toggleVideo()"
+        id="videoBtn"
+        title="Camera On/Off"
+      >
+        📹
+      </button>
+      <button class="control-btn danger" onclick="endCall()" title="End Call">
+        📞
+      </button>
+    </div>
+  </body>
+</html>

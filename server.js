@@ -1,4 +1,4 @@
-// server.js - WebSocket signaling server for WebRTC
+// server.js - WebSocket signaling server for WebRTC with reconnection support
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
@@ -7,15 +7,24 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Serve static files from 'public' directory
+// Serve static files from current directory
 app.use(express.static("."));
 
 // Store connected clients and room information
 const rooms = new Map(); // roomId -> Set of client WebSockets
 const clientRooms = new Map(); // client WebSocket -> roomId
 
+// Heartbeat to detect disconnected clients
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+
 wss.on("connection", (ws) => {
   console.log("New client connected");
+
+  // Setup heartbeat
+  ws.isAlive = true;
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
 
   ws.on("message", (message) => {
     try {
@@ -39,6 +48,18 @@ wss.on("connection", (ws) => {
           broadcastToRoom(ws, data);
           break;
 
+        case "restart":
+          broadcastToRoom(ws, data);
+          break;
+
+        case "check-peer":
+          broadcastToRoom(ws, data);
+          break;
+
+        case "peer-ready":
+          broadcastToRoom(ws, data);
+          break;
+
         default:
           console.log("Unknown message type:", data.type);
       }
@@ -55,6 +76,24 @@ wss.on("connection", (ws) => {
   ws.on("error", (error) => {
     console.error("WebSocket error:", error);
   });
+});
+
+// Heartbeat interval to detect dead connections
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      console.log("Terminating dead connection");
+      handleDisconnect(ws);
+      return ws.terminate();
+    }
+
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, HEARTBEAT_INTERVAL);
+
+wss.on("close", () => {
+  clearInterval(heartbeatInterval);
 });
 
 // Handle client joining a room
@@ -144,6 +183,7 @@ function handleDisconnect(ws) {
       // Delete room if empty
       if (room.size === 0) {
         rooms.delete(roomId);
+        console.log(`Room ${roomId} deleted (empty)`);
       }
     }
 
