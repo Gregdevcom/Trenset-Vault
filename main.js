@@ -7,6 +7,8 @@ let peerConnection;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 let reconnectTimeout;
+let isVideo;
+let isMuted;
 
 const servers = {
   iceServers: [
@@ -50,7 +52,9 @@ async function handlePageVisible() {
       !videoTrack.enabled ||
       videoTrack.readyState === "ended"
     ) {
-      await reinitializeMedia();
+      if (!isVideo) {
+        await reinitializeMedia();
+      }
     }
 
     if (
@@ -58,13 +62,14 @@ async function handlePageVisible() {
       !audioTrack.enabled ||
       audioTrack.readyState === "ended"
     ) {
-      await reinitializeMedia();
+      if (!isMuted) {
+        await reinitializeMedia();
+      }
     }
   }
 
   // Check WebSocket connection
   if (!ws || ws.readyState !== WebSocket.OPEN) {
-    console.log("WebSocket disconnected - reconnecting...");
     connectWebSocket();
   }
 
@@ -92,16 +97,20 @@ async function reinitializeMedia() {
 
     // Get new stream
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 1920, max: 1920 },
-        height: { ideal: 1080, max: 1080 },
-        frameRate: { ideal: 30, max: 60 },
-      },
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
+      video: isVideo
+        ? {
+            width: { ideal: 1920, max: 1920 },
+            height: { ideal: 1080, max: 1080 },
+            frameRate: { ideal: 30, max: 60 },
+          }
+        : false,
+      audio: !isMuted
+        ? {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          }
+        : false,
     });
 
     pipVideo.srcObject = localStream;
@@ -153,18 +162,48 @@ async function updatePeerConnectionTracks() {
 
 // ============ INITIAL SETUP ============
 let init = async () => {
+  const btn02 = document.getElementById("muteBtn");
+  const btn = document.getElementById("videoBtn");
+  if (
+    sessionStorage.getItem("videoOn") === null ||
+    sessionStorage.getItem("videoOn") === "true"
+  ) {
+    sessionStorage.setItem("videoOn", "true");
+    isVideo = true;
+    btn.innerHTML =
+      '<span class="material-symbols-outlined">hangout_video</span>';
+  } else {
+    isVideo = false;
+    btn.innerHTML =
+      '<span class="material-symbols-outlined">hangout_video_off</span>';
+  }
+  if (
+    sessionStorage.getItem("micOn") === null ||
+    sessionStorage.getItem("micOn") === "true"
+  ) {
+    sessionStorage.setItem("micOn", "true");
+    isMuted = false;
+    btn02.innerHTML = '<i class="fa-solid fa-phone-volume"></i>';
+  } else {
+    isMuted = true;
+    btn02.innerHTML = '<i class="fa-solid fa-phone-slash"></i>';
+  }
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 1920, max: 1920 },
-        height: { ideal: 1080, max: 1080 },
-        frameRate: { ideal: 30, max: 60 },
-      },
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
+      video: isVideo
+        ? {
+            width: { ideal: 1920, max: 1920 },
+            height: { ideal: 1080, max: 1080 },
+            frameRate: { ideal: 30, max: 60 },
+          }
+        : false,
+      audio: !isMuted
+        ? {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          }
+        : false,
     });
 
     // Monitor track endings

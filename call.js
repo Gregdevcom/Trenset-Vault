@@ -39,37 +39,53 @@ function swapVideos() {
 }
 
 // Toggle mute
-let isMuted = false;
-function toggleMute() {
+async function toggleMute() {
   const btn = document.getElementById("muteBtn");
-  isMuted = !isMuted;
-
+  if (sessionStorage.getItem("micOn") === "false") {
+    sessionStorage.setItem("micOn", "true");
+    isMuted = false;
+    btn.innerHTML = '<i class="fa-solid fa-phone-volume"></i>';
+  } else if (sessionStorage.getItem("micOn") === "true") {
+    sessionStorage.setItem("micOn", "false");
+    isMuted = true;
+    btn.innerHTML = '<i class="fa-solid fa-phone-slash"></i>';
+  }
   if (window.localStream) {
+    const audioTracks = window.localStream.getAudioTracks();
+    if (!isMuted && audioTracks.length === 0) {
+      await reinitializeMedia();
+      return;
+    }
     window.localStream.getAudioTracks().forEach((track) => {
       track.enabled = !isMuted;
     });
   }
-
-  btn.innerHTML = isMuted
-    ? '<i class="fa-solid fa-phone-slash"></i>'
-    : '<i class="fa-solid fa-phone-volume"></i>';
 }
 
-// Toggle video
-let isVideoOff = false;
-function toggleVideo() {
+// Toggle video // change
+async function toggleVideo() {
   const btn = document.getElementById("videoBtn");
-  isVideoOff = !isVideoOff;
-
+  if (sessionStorage.getItem("videoOn") === "true") {
+    sessionStorage.setItem("videoOn", "false");
+    isVideo = false;
+    btn.innerHTML =
+      '<span class="material-symbols-outlined">hangout_video_off</span>';
+  } else if (sessionStorage.getItem("videoOn") === "false") {
+    sessionStorage.setItem("videoOn", "true");
+    isVideo = true;
+    btn.innerHTML =
+      '<span class="material-symbols-outlined">hangout_video</span>';
+  }
   if (window.localStream) {
+    const videoTracks = window.localStream.getVideoTracks();
+    if (isVideo && videoTracks.length === 0) {
+      await reinitializeMedia();
+      return;
+    }
     window.localStream.getVideoTracks().forEach((track) => {
-      track.enabled = !isVideoOff;
+      track.enabled = isVideo;
     });
   }
-
-  btn.innerHTML = isVideoOff
-    ? '<span class="material-symbols-outlined">hangout_video_off</span>'
-    : '<span class="material-symbols-outlined">hangout_video</span>';
 }
 
 // End call
