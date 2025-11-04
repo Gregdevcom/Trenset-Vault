@@ -12,7 +12,7 @@ function copyRoomCode() {
   navigator.clipboard.writeText(roomCode).then(() => {
     const btn = document.querySelector(".copy-btn");
     const originalText = btn.innerHTML;
-    btn.innerHTML = "✓ Copied!";
+    btn.innerHTML = "Copied!";
     setTimeout(() => {
       btn.innerHTML = originalText;
     }, 2000);
@@ -50,7 +50,9 @@ function toggleMute() {
     });
   }
 
-  btn.innerHTML = isMuted ? "🔇" : "🎤";
+  btn.innerHTML = isMuted
+    ? '<i class="fa-solid fa-phone-slash"></i>'
+    : '<i class="fa-solid fa-phone-volume"></i>';
 }
 
 // Toggle video
@@ -65,7 +67,9 @@ function toggleVideo() {
     });
   }
 
-  btn.innerHTML = isVideoOff ? "📷" : "📹";
+  btn.innerHTML = isVideoOff
+    ? '<span class="material-symbols-outlined">hangout_video_off</span>'
+    : '<span class="material-symbols-outlined">hangout_video</span>';
 }
 
 // End call

@@ -33,12 +33,8 @@ if (!roomId) {
 // ============ VISIBILITY AND LIFECYCLE HANDLING ============
 document.addEventListener("visibilitychange", async () => {
   isPageVisible = !document.hidden;
-
   if (isPageVisible) {
-    console.log("Page visible again - checking streams...");
     await handlePageVisible();
-  } else {
-    console.log("Page hidden");
   }
 });
 
@@ -54,7 +50,6 @@ async function handlePageVisible() {
       !videoTrack.enabled ||
       videoTrack.readyState === "ended"
     ) {
-      console.log("Video track lost - reinitializing...");
       await reinitializeMedia();
     }
 
@@ -63,7 +58,6 @@ async function handlePageVisible() {
       !audioTrack.enabled ||
       audioTrack.readyState === "ended"
     ) {
-      console.log("Audio track lost - reinitializing...");
       await reinitializeMedia();
     }
   }
@@ -78,14 +72,10 @@ async function handlePageVisible() {
   if (peerConnection) {
     const state = peerConnection.connectionState;
     if (state === "failed" || state === "disconnected" || state === "closed") {
-      console.log(`Peer connection ${state} - attempting recovery...`);
       await restartConnection();
     }
   } else if (isInitiator && ws && ws.readyState === WebSocket.OPEN) {
     // If we're the initiator but have no peer connection, check if there's someone waiting
-    console.log(
-      "No peer connection on page visible - requesting reconnection..."
-    );
     ws.send(JSON.stringify({ type: "check-peer" }));
   }
 }
@@ -124,8 +114,7 @@ async function reinitializeMedia() {
     if (peerConnection && peerConnection.connectionState === "connected") {
       await updatePeerConnectionTracks();
     }
-  } catch (error) {
-    console.error("Failed to reinitialize media:", error);
+  } catch {
     errText.innerText = "Camera error - please refresh";
   }
 }
@@ -145,7 +134,6 @@ async function updatePeerConnectionTracks() {
     if (videoSender) {
       const newVideoTrack = localStream.getVideoTracks()[0];
       await videoSender.replaceTrack(newVideoTrack);
-      console.log("Video track replaced");
     }
 
     // Replace audio track
@@ -155,12 +143,10 @@ async function updatePeerConnectionTracks() {
     if (audioSender) {
       const newAudioTrack = localStream.getAudioTracks()[0];
       await audioSender.replaceTrack(newAudioTrack);
-      console.log("Audio track replaced");
     }
 
     errText.innerText = "Connected!";
-  } catch (error) {
-    console.error("Error updating tracks:", error);
+  } catch {
     await restartConnection();
   }
 }
@@ -168,7 +154,6 @@ async function updatePeerConnectionTracks() {
 // ============ INITIAL SETUP ============
 let init = async () => {
   try {
-    console.log("Requesting camera and microphone access...");
     localStream = await navigator.mediaDevices.getUserMedia({
       video: {
         width: { ideal: 1920, max: 1920 },
@@ -182,12 +167,9 @@ let init = async () => {
       },
     });
 
-    console.log("Got media stream:", localStream);
-
     // Monitor track endings
     localStream.getTracks().forEach((track) => {
       track.onended = () => {
-        console.log(`Track ended: ${track.kind}`);
         if (isPageVisible) {
           reinitializeMedia();
         }
@@ -197,14 +179,12 @@ let init = async () => {
     pipVideo.srcObject = localStream;
     pipVideo.muted = true;
     window.localStream = localStream;
-    pipVideo.play().catch((e) => console.error("Error playing video:", e));
+    pipVideo.play().catch(() => {});
 
     errText.innerText = "Camera ready!";
-    console.log("Local video should now be visible");
 
     connectWebSocket();
-  } catch (error) {
-    console.error("Media access error:", error);
+  } catch {
     errText.innerText =
       "Camera/mic access denied. Please allow access and refresh.";
   }
@@ -212,8 +192,6 @@ let init = async () => {
 
 // ============ WEBRTC CONNECTION ============
 let createOffer = async () => {
-  console.log("Creating offer...");
-
   if (peerConnection) {
     peerConnection.close();
   }
@@ -233,9 +211,7 @@ let createOffer = async () => {
         parameters.encodings = [{}];
       }
       parameters.encodings[0].maxBitrate = 2500000;
-      sender
-        .setParameters(parameters)
-        .catch((e) => console.error("Error setting parameters:", e));
+      sender.setParameters(parameters).catch(() => {});
     }
   });
 
@@ -243,12 +219,10 @@ let createOffer = async () => {
     event.streams[0].getTracks().forEach((track) => {
       remoteStream.addTrack(track);
     });
-    console.log("Remote track received");
   };
 
   peerConnection.onicecandidate = async (event) => {
     if (event.candidate) {
-      console.log("Sending ICE candidate");
       ws.send(
         JSON.stringify({
           type: "ice-candidate",
@@ -267,14 +241,11 @@ let createOffer = async () => {
       offer: offer,
     })
   );
-  console.log("Offer sent");
 };
 
 // Setup peer connection state listeners
 function setupPeerConnectionListeners() {
   peerConnection.onconnectionstatechange = () => {
-    console.log("Connection state:", peerConnection.connectionState);
-
     switch (peerConnection.connectionState) {
       case "connected":
         errText.innerText = "Connected!";
@@ -293,10 +264,6 @@ function setupPeerConnectionListeners() {
         break;
     }
   };
-
-  peerConnection.oniceconnectionstatechange = () => {
-    console.log("ICE connection state:", peerConnection.iceConnectionState);
-  };
 }
 
 // Schedule reconnection attempt
@@ -311,10 +278,6 @@ function scheduleReconnect() {
   reconnectAttempts++;
   const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // Exponential backoff
 
-  console.log(
-    `Scheduling reconnect attempt ${reconnectAttempts} in ${delay}ms`
-  );
-
   reconnectTimeout = setTimeout(() => {
     reconnectTimeout = null;
     restartConnection();
@@ -323,8 +286,6 @@ function scheduleReconnect() {
 
 // Restart the peer connection
 async function restartConnection() {
-  console.log("Restarting connection...");
-
   if (peerConnection) {
     peerConnection.close();
     peerConnection = null;
@@ -354,7 +315,6 @@ function connectWebSocket() {
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
-    console.log("Connected to signaling server");
     if (wsReconnectTimer) {
       clearTimeout(wsReconnectTimer);
       wsReconnectTimer = null;
@@ -370,7 +330,6 @@ function connectWebSocket() {
 
   ws.onmessage = async (event) => {
     const data = JSON.parse(event.data);
-    console.log("Received message:", data.type);
 
     if (data.type === "joined") {
       isInitiator = data.isInitiator;
@@ -392,7 +351,6 @@ function connectWebSocket() {
     } else if (data.type === "ice-candidate") {
       await handleIceCandidate(data.candidate);
     } else if (data.type === "restart") {
-      console.log("Peer is restarting connection");
       if (peerConnection) {
         peerConnection.close();
         peerConnection = null;
@@ -400,11 +358,9 @@ function connectWebSocket() {
       errText.innerText = "Reconnecting...";
     } else if (data.type === "check-peer") {
       // Other peer is checking if we're still here - respond with ready if we are
-      console.log("Peer checking connection - sending ready signal");
       ws.send(JSON.stringify({ type: "peer-ready" }));
     } else if (data.type === "peer-ready") {
       // Peer confirmed they're ready - restart connection if needed
-      console.log("Peer is ready - reestablishing connection");
       if (!peerConnection || peerConnection.connectionState !== "connected") {
         if (isInitiator) {
           await createOffer();
@@ -422,13 +378,10 @@ function connectWebSocket() {
   };
 
   ws.onerror = (error) => {
-    console.error("WebSocket error:", error);
     errText.innerText = "Connection error...";
   };
 
   ws.onclose = () => {
-    console.log("WebSocket closed - will reconnect");
-
     // Reconnect after 2 seconds
     if (!wsReconnectTimer) {
       wsReconnectTimer = setTimeout(() => {
@@ -441,8 +394,6 @@ function connectWebSocket() {
 }
 
 async function handleOffer(offer) {
-  console.log("Handling offer...");
-
   if (peerConnection) {
     peerConnection.close();
   }
@@ -472,12 +423,10 @@ async function handleOffer(offer) {
     event.streams[0].getTracks().forEach((track) => {
       remoteStream.addTrack(track);
     });
-    console.log("Remote track received");
   };
 
   peerConnection.onicecandidate = async (event) => {
     if (event.candidate) {
-      console.log("Sending ICE candidate");
       ws.send(
         JSON.stringify({
           type: "ice-candidate",
@@ -498,13 +447,10 @@ async function handleOffer(offer) {
       answer: answer,
     })
   );
-  console.log("Answer sent");
 }
 
 async function handleAnswer(answer) {
-  console.log("Handling answer...");
   if (!peerConnection) {
-    console.error("No peer connection!");
     return;
   }
   await peerConnection.setRemoteDescription(answer);
@@ -512,13 +458,10 @@ async function handleAnswer(answer) {
 }
 
 async function handleIceCandidate(candidate) {
-  console.log("Adding ICE candidate...");
   if (peerConnection) {
     try {
       await peerConnection.addIceCandidate(candidate);
-    } catch (error) {
-      console.error("Error adding ICE candidate:", error);
-    }
+    } catch (error) {}
   }
 }
 

@@ -18,8 +18,6 @@ const clientRooms = new Map(); // client WebSocket -> roomId
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
 
 wss.on("connection", (ws) => {
-  console.log("New client connected");
-
   // Setup heartbeat
   ws.isAlive = true;
   ws.on("pong", () => {
@@ -29,7 +27,6 @@ wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     try {
       const data = JSON.parse(message);
-      console.log("Received:", data.type);
 
       switch (data.type) {
         case "join":
@@ -63,18 +60,11 @@ wss.on("connection", (ws) => {
         default:
           console.log("Unknown message type:", data.type);
       }
-    } catch (error) {
-      console.error("Error parsing message:", error);
-    }
+    } catch {}
   });
 
   ws.on("close", () => {
-    console.log("Client disconnected");
     handleDisconnect(ws);
-  });
-
-  ws.on("error", (error) => {
-    console.error("WebSocket error:", error);
   });
 });
 
@@ -82,7 +72,6 @@ wss.on("connection", (ws) => {
 const heartbeatInterval = setInterval(() => {
   wss.clients.forEach((ws) => {
     if (ws.isAlive === false) {
-      console.log("Terminating dead connection");
       handleDisconnect(ws);
       return ws.terminate();
     }
@@ -127,8 +116,6 @@ function handleJoin(ws, roomId) {
     })
   );
 
-  console.log(`Client joined room ${roomId}. Room size: ${room.size}`);
-
   // If second person joined, notify first person to start call
   if (room.size === 2) {
     room.forEach((client) => {
@@ -144,14 +131,12 @@ function broadcastToRoom(sender, data) {
   const roomId = clientRooms.get(sender);
 
   if (!roomId) {
-    console.log("Client not in a room");
     return;
   }
 
   const room = rooms.get(roomId);
 
   if (!room) {
-    console.log("Room not found");
     return;
   }
 
@@ -183,7 +168,6 @@ function handleDisconnect(ws) {
       // Delete room if empty
       if (room.size === 0) {
         rooms.delete(roomId);
-        console.log(`Room ${roomId} deleted (empty)`);
       }
     }
 

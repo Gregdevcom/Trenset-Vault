@@ -8,7 +8,25 @@
     <link rel="icon" href="tvFav.png" type="image/x-icon" />
     <script src="main.js" defer></script>
     <script src="call.js" defer></script>
+    <script
+      src="https://kit.fontawesome.com/31e46feb46.js"
+      crossorigin="anonymous"
+    ></script>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    />
+
     <style>
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+        font-size: 32px;
+        color: #e3e3e3;
+      }
       * {
         margin: 0;
         padding: 0;
@@ -58,7 +76,7 @@
       }
 
       .copy-btn {
-        background: #667eea;
+        background: #2668b5;
         color: white;
         border: none;
         padding: 8px 16px;
@@ -200,7 +218,7 @@
     <div class="header">
       <div class="room-info">
         <div class="room-code">Room: <span id="roomCodeDisplay"></span></div>
-        <button class="copy-btn" onclick="copyRoomCode()">📋 Copy Code</button>
+        <button class="copy-btn" onclick="copyRoomCode()">Copy Code</button>
       </div>
       <p id="err"></p>
     </div>
@@ -226,7 +244,7 @@
         id="muteBtn"
         title="Mute/Unmute"
       >
-        🎤
+        <i class="fa-solid fa-phone-volume"></i>
       </button>
       <button
         class="control-btn"
@@ -234,10 +252,10 @@
         id="videoBtn"
         title="Camera On/Off"
       >
-        📹
+        <span class="material-symbols-outlined"> hangout_video </span>
       </button>
       <button class="control-btn danger" onclick="endCall()" title="End Call">
-        📞
+        <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
   </body>
