@@ -10,6 +10,21 @@ let reconnectTimeout;
 let isVideo;
 let isMuted;
 
+// ✨ NEW: Function to get TURN server credentials
+async function getTurnServers() {
+  try {
+    const response = await fetch(
+      "https://trenzet-vault.metered.live/api/v1/turn/credentials?apiKey=9b8c11e6df0b9d43d7e66fe1ed06b72f4a94"
+    );
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching TURN credentials:", error);
+    // Fallback to just STUN if TURN fetch fails
+    return [];
+  }
+}
+
 const servers = {
   iceServers: [
     {
@@ -259,7 +274,23 @@ let createOffer = async () => {
     peerConnection.close();
   }
 
-  peerConnection = new RTCPeerConnection(servers);
+  // ✨ NEW: Get fresh TURN credentials
+  const turnServers = await getTurnServers();
+
+  // Combine STUN and TURN servers
+  const iceServers = [
+    // Keep Google STUN servers
+    {
+      urls: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
+    },
+    // Add Metered TURN servers
+    ...turnServers,
+  ];
+
+  peerConnection = new RTCPeerConnection({
+    iceServers: iceServers,
+    iceCandidatePoolSize: 10,
+  });
   setupPeerConnectionListeners();
 
   remoteStream = new MediaStream();
@@ -286,6 +317,14 @@ let createOffer = async () => {
 
   peerConnection.onicecandidate = async (event) => {
     if (event.candidate) {
+      // ✨ NEW: Log the type of connection
+      const candidateType = event.candidate.type;
+      console.log(`🔌 ICE Candidate: ${candidateType}`);
+
+      if (candidateType === "relay") {
+        console.log("✅ Using TURN relay server!");
+      }
+
       ws.send(
         JSON.stringify({
           type: "ice-candidate",
@@ -383,12 +422,29 @@ function connectWebSocket() {
       wsReconnectTimer = null;
     }
 
-    ws.send(
-      JSON.stringify({
-        type: "join",
-        roomId: roomId,
-      })
-    );
+    // ✨ NEW: Check if this user created the room
+    const isCreator = sessionStorage.getItem("isCreator") === roomId;
+
+    if (isCreator) {
+      // Clear the flag so rejoin works normally
+      sessionStorage.removeItem("isCreator");
+
+      // Send create-room message
+      ws.send(
+        JSON.stringify({
+          type: "create-room",
+          roomId: roomId,
+        })
+      );
+    } else {
+      // Regular join
+      ws.send(
+        JSON.stringify({
+          type: "join",
+          roomId: roomId,
+        })
+      );
+    }
   };
 
   ws.onmessage = async (event) => {
@@ -437,6 +493,13 @@ function connectWebSocket() {
       }
     } else if (data.type === "error") {
       errText.innerText = data.message || "An error occurred";
+
+      // ✨ NEW: Redirect if room doesn't exist
+      if (data.redirect) {
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 0);
+      }
     }
   };
 
@@ -461,8 +524,21 @@ async function handleOffer(offer) {
     peerConnection.close();
   }
 
-  peerConnection = new RTCPeerConnection(servers);
-  setupPeerConnectionListeners();
+  // ✨ NEW: Get fresh TURN credentials
+  const turnServers = await getTurnServers();
+
+  // Combine STUN and TURN servers
+  const iceServers = [
+    {
+      urls: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
+    },
+    ...turnServers,
+  ];
+
+  peerConnection = new RTCPeerConnection({
+    iceServers: iceServers,
+    iceCandidatePoolSize: 10,
+  });
 
   remoteStream = new MediaStream();
   mainVideo.srcObject = remoteStream;
@@ -490,6 +566,14 @@ async function handleOffer(offer) {
 
   peerConnection.onicecandidate = async (event) => {
     if (event.candidate) {
+      // ✨ NEW: Log the type of connection
+      const candidateType = event.candidate.type;
+      console.log(`🔌 ICE Candidate: ${candidateType}`);
+
+      if (candidateType === "relay") {
+        console.log("✅ Using TURN relay server!");
+      }
+
       ws.send(
         JSON.stringify({
           type: "ice-candidate",
@@ -531,6 +615,18 @@ async function handleIceCandidate(candidate) {
 // Start the initialization
 init();
 
+// Functional:
+// Disallow joining random rooms - DONE
 // Handle network switches gracefully
+// Add database storage and review screen after calls
+// Kick/accept option for room owners
+// Screen sharing
+
+// Design:
+// Change "end call" to "leave room"
+// History of recent calls (and codes), check if a call is online/does not exist, and how many participants
+// Loading screen
 // Change the text indicator inside the chat
-// Not let mobile users connect
+// Custom leave screen
+
+// Immediate: add TURN

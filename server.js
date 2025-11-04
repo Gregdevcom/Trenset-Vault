@@ -10,12 +10,46 @@ const wss = new WebSocket.Server({ server });
 // Serve static files from current directory
 app.use(express.static("."));
 
+// ✨ NEW: API endpoint to check if a room exists
+app.get("/api/check-room", (req, res) => {
+  // Get the roomId from the URL query parameter
+  // Example: /api/check-room?roomId=abc123
+  // req.query.roomId will be "abc123"
+  const roomId = req.query.roomId;
+
+  // Check if this room was properly created
+  const exists = validRooms.has(roomId);
+
+  // Send back a JSON response
+  // This is like the server saying "yes" or "no"
+  res.json({ exists: exists });
+});
+
 // Store connected clients and room information
 const rooms = new Map(); // roomId -> Set of client WebSockets
 const clientRooms = new Map(); // client WebSocket -> roomId
-
+const validRooms = new Set();
 // Heartbeat to detect disconnected clients
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+
+// Clean up any closed/dead connections from a room
+function cleanupRoom(roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+
+  // Find and remove any dead connections
+  room.forEach((client) => {
+    if (client.readyState !== WebSocket.OPEN) {
+      room.delete(client);
+      clientRooms.delete(client);
+    }
+  });
+
+  // If room is now empty, delete it entirely
+  if (room.size === 0) {
+    rooms.delete(roomId);
+  }
+}
 
 wss.on("connection", (ws) => {
   // Setup heartbeat
@@ -27,8 +61,10 @@ wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     try {
       const data = JSON.parse(message);
-
       switch (data.type) {
+        case "create-room": // ✨ NEW
+          handleCreateRoom(ws, data.roomId);
+          break;
         case "join":
           handleJoin(ws, data.roomId);
           break;
@@ -85,10 +121,31 @@ wss.on("close", () => {
   clearInterval(heartbeatInterval);
 });
 
+// Create a new room (only called by room creator)
+function handleCreateRoom(ws, roomId) {
+  // Mark this room as valid
+  validRooms.add(roomId);
+
+  // Now join the room
+  handleJoin(ws, roomId);
+}
+
 // Handle client joining a room
 function handleJoin(ws, roomId) {
   // Leave current room if in one
   handleDisconnect(ws);
+
+  // ✨ NEW: Check if room is valid (was properly created)
+  if (!validRooms.has(roomId)) {
+    ws.send(
+      JSON.stringify({
+        type: "error",
+        message: "Room does not exist",
+        redirect: true, // Tell client to redirect
+      })
+    );
+    return;
+  }
 
   // Create room if it doesn't exist
   if (!rooms.has(roomId)) {
@@ -96,6 +153,9 @@ function handleJoin(ws, roomId) {
   }
 
   const room = rooms.get(roomId);
+
+  // ✨ NEW: Clean up any dead connections first
+  cleanupRoom(roomId);
 
   // Check if room is full (limit to 2 users for 1-on-1 call)
   if (room.size >= 2) {
@@ -168,6 +228,7 @@ function handleDisconnect(ws) {
       // Delete room if empty
       if (room.size === 0) {
         rooms.delete(roomId);
+        validRooms.delete(roomId);
       }
     }
 

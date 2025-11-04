@@ -2,8 +2,7 @@
 window.addEventListener("DOMContentLoaded", () => {
   // Use roomId from main.js (it's already declared there)
   if (typeof roomId !== "undefined" && roomId) {
-    document.getElementById("roomCodeDisplay").textContent =
-      roomId.toUpperCase();
+    document.getElementById("roomCodeDisplay").textContent = roomId;
   }
 });
 
