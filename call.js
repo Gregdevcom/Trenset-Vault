@@ -1,3 +1,7 @@
+exitDivElem = document.getElementById("extCallDiv");
+lvBtnElem = document.getElementById("lvBtn");
+controlBtnElem = document.getElementById("control-btn");
+
 // Wait for main.js to load, then use roomId
 window.addEventListener("DOMContentLoaded", () => {
   // Use roomId from main.js (it's already declared there)
@@ -90,7 +94,26 @@ async function toggleVideo() {
 
 // End call
 function endCall() {
-  if (confirm("End call?")) {
-    window.location.href = "/";
+  // Show exit banner (small tooltip above exit button)
+  if (exitDivElem.classList.contains("show")) {
+    controlBtnElem.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i>';
+    controlBtnElem.classList.remove("change");
+    exitDivElem.classList.remove("show");
+    return;
+  } else if (!exitDivElem.classList.contains("show")) {
+    controlBtnElem.innerHTML = '<i class="fa-regular fa-circle-xmark"></i>';
+    controlBtnElem.classList.add("change");
+    exitDivElem.classList.add("show");
+    lvBtnElem.addEventListener("click", () => {
+      window.location.href = "/";
+      exitDivElem.classList.remove("show");
+      return;
+    });
+    setTimeout(() => {
+      controlBtnElem.innerHTML =
+        '<i class="fa-solid fa-right-from-bracket"></i>';
+      controlBtnElem.classList.remove("change");
+      exitDivElem.classList.remove("show");
+    }, 10000);
   }
 }

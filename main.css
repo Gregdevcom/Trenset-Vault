@@ -133,3 +133,12 @@ button:active {
 .error.show {
   display: block;
 }
+
+@media (max-width: 767px) {
+  .input-group {
+    display: grid;
+    white-space: wrap;
+    text-align: center;
+    vertical-align: center;
+  }
+}
